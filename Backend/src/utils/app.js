@@ -6,6 +6,10 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import routes from './routes/index.js';
 
+const routes = require('../api/routes');
+const notFound = require('../middleware/notFound');
+const errorHandler = require('../middleware/errorHandler');
+
 export function createApp() {
   const app = express();
 
@@ -26,6 +30,11 @@ export function createApp() {
   });
 
   app.use(helmet());
+  app.use(cors());  
+  app.use(express.json());
+
+
+  app.use('/api', routes);
 
   const allowedOrigins = (process.env.CORS_ORIGIN || '')
     .split(',')
@@ -98,6 +107,11 @@ export function createApp() {
       requestId: req.requestId,
     });
   });
+  
+  // Order matters: notFound catches unmatched routes, errorHandler is last
+  // so it catches everything (including errors passed via next(err)).
+  app.use(notFound);
+  app.use(errorHandler);
 
-  return app;
+ module.exports = app;
 }
