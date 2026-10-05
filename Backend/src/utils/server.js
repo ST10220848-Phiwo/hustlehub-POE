@@ -22,8 +22,7 @@ async function start() {
     setTimeout(() => process.exit(1), 10000).unref();
   }
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+
 }
 
 start().catch((err) => {

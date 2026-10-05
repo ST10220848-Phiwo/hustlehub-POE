@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { AppError } from '../../utils/AppError.js';
 
 /**
@@ -10,3 +11,10 @@ export const notFound = (req, res, next) => {
   next(new AppError(`Route not found: ${req.originalUrl}`, 404));
 };
  
+=======
+const AppError = require('../utils/appError');
+
+module.exports = function notFound(req, res, next) {
+  next(AppError.notFound(`Route ${req.originalUrl} not found`));
+};
+>>>>>>> main
