@@ -1,15 +1,14 @@
-const { Router } = require('express');
-const authRoute = require('./auth.route'); // your existing auth.route.js
-const authenticate = require('../../middleware/authenticate');
-// const userRoute = require('./user.route');
+import { Router } from 'express';
+import { authRouter } from '../routes/auth.routes.js';
+
+/**
+ *  This module manages the auth routing for gigs and bookings
+ */
 
 const router = Router();
+router.use('/auth', authRouter);
+//Future implementation:
+// router.use('/gigs', gigRouter);
+//router.use('/bookings', bookingRouter);
 
-// Public — no token required
-router.use('/auth', authRoute); // /api/auth/register, /api/auth/login
-
-// Anything mounted below this line requires a valid JWT.
-// Add authorize('role') per-route on top of this where needed.
-router.use('/users', authenticate, userRoute);
-
-module.exports = router;
+export default router;

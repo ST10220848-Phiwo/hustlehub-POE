@@ -121,36 +121,40 @@ bookingSchema.statics.isValidTransition = function isValidTransition(fromStatus,
   return Array.isArray(BOOKING_TRANSITIONS[fromStatus]) && BOOKING_TRANSITIONS[fromStatus].includes(toStatus);
 };
 
-// Enforces the state machine at the model layer as a defence-in-depth
-// measure (per project convention: invariants live close to the domain
-// model, not only in controllers/services). `changedBy` should be set by
-// the calling service via `doc.$locals.changedBy = userId` before save so
-// it lands in statusHistory; it is optional to keep this hook framework-
-// agnostic.
-bookingSchema.pre('validate', async function enforceStatusTransition() {
+//Runs whenever a booking is loaded from MongoDb
+bookingSchema.post('init', function rememberLoadedStatus() {
+  this.$locals.loadedStatus = this.status;
+});
+
+bookingSchema.pre('validate', function enforceStatusTransition() {
   if (this.isNew) {
-    this.statusHistory = [{ status: this.status, changedAt: new Date(), changedBy: this.$locals?.changedBy }];
+    this.statusHistory = [
+      {
+        status: this.status,
+        changedAt: new Date(),
+        changedBy: this.$locals.changedBy ?? null,
+      },
+    ];
     return;
   }
 
-  if (this.isModified('status')) {
-    // Mongoose does not expose the pre-mutation value of a field inside a
-    // pre-save/pre-validate hook, so the calling service is responsible for
-    // recording the status it loaded the document with before mutating it,
-    // e.g.: `booking.$locals.previousStatus = booking.status; booking.status = next;`
-    // If the caller omits this, the transition check is skipped here and
-    // MUST still be performed explicitly in the application service before
-    // save() is called - do not rely on this hook alone in that case.
-    const previous = this.$locals?.previousStatus;
-    if (previous && !Booking.isValidTransition(previous, this.status)) {
-      throw new Error(`Invalid booking status transition: ${previous} -> ${this.status}`);
-    }
-    this.statusHistory.push({
-      status: this.status,
-      changedAt: new Date(),
-      changedBy: this.$locals?.changedBy,
-    });
+  if (!this.isModified('status')) return;
+
+  const previous = this.$locals.loadedStatus;
+  if (!previous || !this.constructor.isValidTransition(previous, this.status)) {
+    this.invalidate(
+      'status',
+      `Cannot change booking status from "${previous ?? 'unknown'}" to "${this.status}".`
+    );
+    return;
   }
+
+  this.statusHistory.push({
+    status: this.status,
+    changedAt: new Date(),
+    changedBy: this.$locals.changedBy ?? null,
+  });
+  this.$locals.loadedStatus = this.status; // allows a further valid transition on the same document
 });
 
 export const Booking = mongoose.models.Booking || mongoose.model('Booking', bookingSchema);

@@ -1,4 +1,4 @@
-import { mongoose } from '../connection.js';
+import mongoose from 'mongoose';
 
 
 export const DEFAULT_CURRENCY = process.env.DEFAULT_CURRENCY || 'ZAR';

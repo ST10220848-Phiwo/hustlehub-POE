@@ -31,4 +31,39 @@ export function createAuthService({
     const getDummyHash = () => {
         (dummyHashPromise ??= hasher.hashPassword('timing-equaliser-not-a-password'));
     }
+
+    
+    async function registerUser({name, email, password, roles}) {
+        const passwordHash = await hasher.hashPassword(password);
+        try {
+            const user = await UserModel.create({ name, email, passwordHash, roles: toSafeRoles(roles) });
+            return user.toJSON();
+        } catch (err) {
+            if (err?.code === 11000) {
+                throw AppError.conflict('An account with this email address already exists', { email });
+            }
+            throw err;
+        }
+    }
+
+    async function authenticateUser({ email, password }) {
+        const user = await UserModel.findOne({ email }).select('passwordHash');
+        //Always run bcrypt, even when the user doesn't exist 
+        const passwordMatches = await hasher.verifyPassword(
+            password,
+            user?.passwordHash ?? (await getDummyHash())
+        );
+
+        //Identical error for unknown email, wrong password and disabled account
+        if (!user || !user.isActive || !passwordMatches) {
+            throw AppError.unauthorized('Invalid email or password.');
+        }
+
+        const token = signToken({ id: user._id.toString(), roles: user.roles});
+        return { user: user.toJSON(), token }
+    }
+
+    return { registerUser, authenticateUser };
 }
+
+export const authService = createAuthService();

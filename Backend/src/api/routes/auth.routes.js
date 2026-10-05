@@ -1,30 +1,37 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 import { register, login, logout, me } from '../api/auth.controller.js';
-import { authenticateWithRealUser } from '../middleware/authenticate.js';
+import { authenticate } from '../middleware/auth.js';
+import { validate } from '../../middleware/validate.js';
+import { registerSchema, loginSchema } from '../../validations/auth.validation.js';
+import { AppError } from '../utils/AppError.js';
 
-const router = Router();
-
-// Tighter than the global limiter in app.js on purpose - register/login are
-// the credential-stuffing, brute-force, and registration-spam attack
-// surface, and the generic 100-req/15min limit alone is not tight enough
-// for that.
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
+const limiterDefaults = {
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
-  message: {
-    type: 'about:blank',
-    title: 'Too Many Requests',
-    status: 429,
-    detail: 'Too many attempts. Please try again later.',
-  },
+  //Route 429s through the central error handler so they share the problem+json format
+  handler: (_req, _res, next, options) => next(AppError.tooManyRequests(options.message)),
+};
+
+const loginLimiter = rateLimit({
+  ...limiterDefaults,
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: 'Too many login attempts. Please try again in 15 minutes.',
 });
 
-router.post('/register', authLimiter, register);
-router.post('/login', authLimiter, login);
-router.post('/logout', logout);
-router.get('/me', authenticateWithRealUser, me);
+const registerLimiter = rateLimit({
+  ...limiterDefaults,
+  windowsMs: 60 * 60 * 1000,
+  limit: 5,
+  message: 'Too many accounts created from this network. Please try again later.'
+});
 
-export default router;
+export const authRouter = Router();
+
+//Limiter runs before validation so malformed spam counts against the limit
+authRouter.post('/register', registerLimiter, validate(registerSchema), register);
+authRouter.post('/login', loginLimiter, validate(loginSchema), login);
+authRouter.post('/logout', logout);
+authRouter.get('/me', authenticate, me);
