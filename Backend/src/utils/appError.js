@@ -1,48 +1,62 @@
-/**
- * AppError — the only kind of error that should reach the client with its
- * message intact. Anything else (programming errors, unexpected exceptions)
- * gets a generic message from errorHandler.js instead, to avoid leaking
- * stack traces, file paths, or config values.
+/**@alias
+ * AppError
+ * 
+ * Error class for handling application errors. It extends the built-in Error class 
+ * and adds additional properties for status code, status, and operational flag.
+ * 
  */
-class AppError extends Error {
+
+export class AppError extends Error {
   /**
-   * @param {string} message - safe, user-facing message
-   * @param {number} statusCode - HTTP status code
-   * @param {any} [details] - optional safe extra info (e.g. validation field errors)
+   * Creates an instance of AppError.
+   * @param {string} message - The error message.
+   * @param {number} statusCode - The HTTP status code associated with the error.
+   * @param {Object} details - Additional details about the error.
    */
-  constructor(message, statusCode = 500, details = null) {
-    super(message);
-    this.name = this.constructor.name;
-    this.statusCode = statusCode;
-    this.details = details;
-    this.isOperational = true; // marks "expected" errors vs. unhandled bugs
+    constructor(message, statusCode, details) {
+        super(message);
+        this.statusCode = statusCode;
+        this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+        this.details = details;
+        this.isOperational = true;
+    }
 
-    Error.captureStackTrace(this, this.constructor);
-  }
+    get statusCode() {
+        return this._statusCode;
+    }
 
-  static badRequest(message = 'Bad request', details) {
-    return new AppError(message, 400, details);
-  }
+    static badRequest(message = "Bad Request: 'No details provided'", details = {}) {
+        return new AppError(message, 400, details);
+    }
 
-  static unauthorized(message = 'Unauthorized') {
-    return new AppError(message, 401);
-  }
+    static unauthorized(message = "Unauthorized: 'Authentication required'", details = {}) {
+        return new AppError(message, 401, details);
+    }
 
-  static forbidden(message = 'Forbidden') {
-    return new AppError(message, 403);
-  }
+    static forbidden(message = "Forbidden: 'Access denied'", details = {}) {
+        return new AppError(message, 403, details);
+    }
 
-  static notFound(message = 'Not found') {
-    return new AppError(message, 404);
-  }
+    static notFound(message = "Not Found: 'Resource not found'", details = {}) {
+        return new AppError(message, 404, details);
+    }
 
-  static conflict(message = 'Conflict') {
-    return new AppError(message, 409);
-  }
+    static conflict(message = "Conflict: 'Resource conflict'", details = {}) {
+        return new AppError(message, 409, details);
+    }
 
-  static internal(message = 'Internal server error') {
-    return new AppError(message, 500);
-  }
+    static unprocessableEntity(message = "Unprocessable Entity: 'Invalid data'", details = {}) {
+        return new AppError(message, 422, details);
+    }
+
+    static tooManyRequests(message = "Too Many Requests: 'Rate limit exceeded'", details = {}) {
+        return new AppError(message, 429, details);
+    }
+
+    static internalServerError(message = "Internal Server Error: 'An unexpected error occurred'", details = {}) {
+        return new AppError(message, 500, details);
+    }
+
+    
+
 }
-
-module.exports = AppError;
