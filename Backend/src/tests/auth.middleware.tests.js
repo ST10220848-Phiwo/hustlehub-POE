@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { authenticate, attachUserIfPresent, requireRole } from '../src/middleware/auth.js';
 import { signAccessToken } from '../src/infrastructure/auth/jwt.js';
-import { AppError } from '../src/middleware/errorHandler.js';
+import { AppError } from '../src/utils/AppError.js';
 
 function runMiddleware(middleware, req) {
   return new Promise((resolve) => {
